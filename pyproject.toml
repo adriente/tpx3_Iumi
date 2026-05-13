@@ -1,0 +1,35 @@
+[build-system]
+requires = ["uv_build >= 0.10.10, <0.11.0"]
+build-backend = "uv_build"
+
+[project]
+name = "tpx3_iumi"
+version = "0.0.1"
+dependencies = [
+  "numba",
+  "numpy",
+  "scipy"
+]
+requires-python = ">= 3.8"
+authors = [
+  {name = "Adrien Teurtrie", email = "adrien.teurtrie@cemes.fr"}
+]
+maintainers = [
+  {name = "Adrien Teurtrie", email = "adrien.teurtrie@cemes.fr"}
+]
+description = "tpx3 data analysis of Iumi UTEM team"
+readme = "README.md"
+keywords = ["timepix3", "data analysis", "UTEM"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Scientists",
+  "Topic :: Data analysis :: Time-resolved experiments",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+]
+
+[project.urls]
+Repository = "https://github.com/adriente/tpx3_Iumi.git"
