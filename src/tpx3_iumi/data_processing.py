@@ -58,6 +58,33 @@ def find_clusters_numba(matrix : np.ndarray, max_num_clust : int = 5):
             
     return clusters
 
+def find_clusters(matrix: np.ndarray):
+    num_vars = matrix.shape[0]
+    # Fix 1: Use bool instead of np.bool
+    visited = np.zeros((num_vars,)).astype(bool)
+    clusters = []
+
+    for node in range(num_vars):
+        if not visited[node]:
+            # Start a new cluster tracking list
+            current_cluster = []
+            queue = [node]
+            visited[node] = True
+            
+            while queue:
+                u = queue.pop(0)
+                current_cluster.append(u)
+                
+                # Check all potential neighbors in the matrix
+                for v in range(num_vars):
+                    if matrix[u][v] == 1 and not visited[v]:
+                        visited[v] = True
+                        queue.append(v)
+
+            clusters.append(current_cluster)
+            
+    return clusters
+
 @njit
 def build_adj_mat(xs : np.ndarray, ys : np.ndarray) : 
     num_vars = xs.shape[0]
@@ -83,7 +110,7 @@ def clusterize(data : np.ndarray, time_span : int = 300, max_num_clust : int = 5
             return cluster_results
         while data[0,ind_step] - data[0,ref_ind] < time_span :
             ind_step += 1
-            if ind_step >= len_data : 
+            if ind_step >= len_data :
                 return cluster_results
         # print(f"ind_step {ind_step}")
         # print(f"ref_ind : {ref_ind}")
@@ -98,15 +125,47 @@ def clusterize(data : np.ndarray, time_span : int = 300, max_num_clust : int = 5
         # print('find')
         chunk_clusters = find_clusters_numba(adj_mat, max_num_clust)
         cluster_inds = np.where(chunk_clusters >=0)
+        cls_count = np.bincount(cluster_inds[0])
         temp_cluster_res = np.ones((2,max_num_clust),dtype=data.dtype)*-1
-        for pos, cls in enumerate(cluster_inds[0]) : 
+        for pos, cls in enumerate(cluster_inds[0]) :
             temp_cluster_res[0,cls] += xs[cluster_inds[1][pos]]
             temp_cluster_res[1,cls] += ys[cluster_inds[1][pos]]
-        temp_cluster_res[0] //= xs.shape[0]
-        temp_cluster_res[1] //= ys.shape[0]
+        for i in np.arange(cls_count.shape[0]) :
+            temp_cluster_res[0,i] //= cls_count[i]
+            temp_cluster_res[1,i] //= cls_count[i]
         cluster_results[:,:,glob_i] = temp_cluster_res
         glob_i +=1
     return cluster_results
+
+@njit
+def clusterize_single_chunk(data, max_num_clust) :
+    data = data.astype(np.int64)
+    xs = data[2,:]
+    ys = data[3,:]
+    adj_mat = build_adj_mat(xs,ys)
+    chunk_clusters = find_clusters_numba(adj_mat, max_num_clust)
+    cluster_inds = np.where(chunk_clusters >=0)
+    cls_count = np.bincount(cluster_inds[0])
+    temp_cluster_res = np.ones((2,max_num_clust),dtype=data.dtype)*-1
+    for pos, cls in enumerate(cluster_inds[0]) :
+        temp_cluster_res[0,cls] += xs[cluster_inds[1][pos]]
+        temp_cluster_res[1,cls] += ys[cluster_inds[1][pos]]
+    for i in np.arange(cls_count.shape[0]) :
+        temp_cluster_res[0,i] //= cls_count[i]
+        temp_cluster_res[1,i] //= cls_count[i]
+    return temp_cluster_res
+
+def single_chunk_cluster(data) :
+    xs = data[2,:]
+    ys = data[3,:]
+    adj_mat = build_adj_mat(xs,ys)
+    chunk_clusters = find_clusters(adj_mat)
+    cluster_pos = []
+    for clust in chunk_clusters : 
+        x_mean = np.mean(xs[clust])
+        y_mean = np.mean(ys[clust])
+        cluster_pos.append([x_mean,y_mean])
+    return cluster_pos
 
 if __name__ == '__main__' : 
     data  = np.load("sorted_apr27_17h.npy")
