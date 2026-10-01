@@ -1,7 +1,11 @@
+import os
+from typing import TypeVar
+
 import numpy as np
 from numpy.typing import NDArray
-from typing import TypeVar
 from numba import njit
+from pathlib import Path
+from .data_processing import sort_data
 
 # Custom types for numba usage.
 IA = NDArray[np.uint64]
@@ -282,3 +286,17 @@ def save_tpx3_no_tdc(output_filename : str, input_file_path : str) -> None :
     """
     result_tuple = read_tpx3_no_tdc(input_file_path)
     np.save(output_filename,np.array(result_tuple))
+
+def tpx3_files_to_sorted_events(input_folder_path : str,output_folder_path : str) -> None :
+    file_list = os.listdir(input_folder_path)
+    output_folder_path = Path(output_folder_path)
+    output_folder_path.mkdir()
+    for file in file_list :
+        if file.endswith('.tpx3') : 
+            file_path = input_folder_path / Path(file)
+            with open(file_path,'rb') as f :
+                ht, tot, x, y = read_tpx3_bytes_no_tdc(np.frombuffer(f.read(),dtype=np.uint64))
+                array = np.array((ht, tot, x, y))
+                sorted_array = sort_data(0,array)
+            npy_file_path = Path(output_folder_path) / f"sorted_events_{file[:-5]}.npy"
+            np.save(npy_file_path, sorted_array)

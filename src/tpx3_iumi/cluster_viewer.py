@@ -119,7 +119,6 @@ class ClusterViewer(CustomApp) :
         self.affect_to('previous', action_menu)
         self.affect_to('cluster_display',action_menu)
         
-
     def connect_things(self):
         self.connect_action('open_file',
                             self.load_data)
@@ -130,7 +129,7 @@ class ClusterViewer(CustomApp) :
         self.connect_action('cluster_display',
                             self.enable_cluster_display)
         
-    def enable_cluster_display(self,value) : 
+    def enable_cluster_display(self,value) :
         self._display_cluster = value
 
     def _show_data(self) :
@@ -239,28 +238,6 @@ class ClusterViewer(CustomApp) :
             self._init_time_ind  = ind_step +1
             self.display_message(f"Visulasing slice between {self._data_chunk_0[0,self._init_time_ind]} ns and {self._data_chunk_0[0,self._final_time_ind]} ns.")
             self._data = self._data_chunk_0[:,self._init_time_ind:self._final_time_ind]
-
-    # def time_slice_data(self, init_time : int, duration : int) :
-    #     fi, li = 0, 0
-    #     iter = 0
-    #     while fi == li :
-    #         fi_array = np.abs(self._data_chunk_0[0,:] - (self._current_init_time))
-    #         li_array = np.abs(self._data_chunk_0[0,:] - (self._current_init_time+duration))
-    #         fi = np.where(fi_array == fi_array.min())[0][0]
-    #         li = np.where(li_array == li_array.min())[0][-1]
-    #         iter += 1
-    #         self._current_init_time += duration
-    #         if iter == 150000 :
-    #             raise ValueError('Too many iterations in time_slice_data loop.')
-    #     if li == (self._data_chunk_0.shape[1] -1) :
-    #         nci = np.argmin(np.abs(self._data_chunk_1[0,:] - (init_time+duration)))
-    #         self._data = np.concatenate((self._data_chunk_0[:,fi:],
-    #                                      self._data_chunk_1[:,:nci+1]),
-    #                                     axis = 1)
-    #         self._chunk_index +=1
-    #         self.chunk_data()
-    #     else :
-    #         self._data = self._data_chunk_0[:,fi:li]
 
     def start(self) :
         raise NotImplementedError("You first need to implement this functionality.")
