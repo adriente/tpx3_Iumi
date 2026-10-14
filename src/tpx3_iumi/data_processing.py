@@ -5,6 +5,7 @@ from numba import njit
 from pathlib import Path
 import re
 import matplotlib.pyplot as plt
+from scipy.ndimage import shift
 
 cheetah3_x_size = 512
 color_list = ['lightblue', 'skyblue','deepskyblue','dodgerblue','slateblue',
@@ -197,8 +198,8 @@ def find_zlp_pos(input_singlets) :
 def calibrate_data(input_data : np.ndarray, zlp_pos : float, energy_dispersion : float) :
     centered_data = input_data - zlp_pos
     calibrated_data = centered_data*energy_dispersion
-    energy_range = [-zlp_pos*energy_dispersion,(cheetah3_x_size-zlp_pos)*energy_dispersion]
-    return calibrated_data, energy_range
+    # energy_range = [-zlp_pos*energy_dispersion,(cheetah3_x_size-zlp_pos)*energy_dispersion]
+    return calibrated_data
 
 def sort_multiplets(input_data : np.ndarray) :
     input_data.sort(axis=0)
@@ -236,15 +237,15 @@ def produce_numpy_histogram(input_data,
 
 def produce_nth_histogram(input_tuple : np.ndarray,
                           dim : int) :
-    fig, ax = plt.subplots(figsize=(8, 5))
+    fig, ax = plt.subplots(figsize=(8, 5)) 
     for i,input in enumerate(input_tuple) :
         ax.stairs(input[0],
-                    input[1],
-                    fill=True,
-                    alpha=0.5,
-                    color=color_list[i%len(color_list)],
-                    edgecolor='black',
-                    label=f'{i}-th electron')
+                input[1],
+                fill=True,
+                alpha=0.5,
+                color=color_list[i%len(color_list)],
+                edgecolor='black',
+                label=f'{i}-th electron')
         ax.set_xlabel("Energy loss (eV)", fontsize=11)
         ax.set_ylabel("Counts", fontsize=11)
         ax.legend(frameon=True, facecolor="white", edgecolor="none", fontsize=10)
@@ -280,6 +281,7 @@ def produce_histograms(input_folder_path : str,
     number_dict = prepare_sum_histo(input_folder_path)
     output_folder_path = Path(output_folder_path)
     output_folder_path.mkdir()
+    sum_zlp_pos = 0
     for file in files :
         if file.endswith('.npy') :
             file_path = input_folder_path / Path(file)
@@ -289,8 +291,8 @@ def produce_histograms(input_folder_path : str,
                 nuplets = np.load(file_path)
                 match number :
                     case "1" :
-                        if zlp_pos is None :
-                            zlp_pos = find_zlp_pos(nuplets)
+                        # if zlp_pos is None :
+                        zlp_pos = find_zlp_pos(nuplets)
                     case _ :
                         nuplets = sort_multiplets(nuplets)
                 assert zlp_pos is not None, "Something is wrong with the zlp position"
@@ -303,9 +305,20 @@ def produce_histograms(input_folder_path : str,
                 histogram_tuple = produce_numpy_histogram(nuplets,
                                                           [0,cheetah3_x_size],
                                                           order = int(number))
-                for i, tuple in enumerate(histogram_tuple) :
-                    number_dict[number][i][0] += tuple[0]
-                    number_dict[number][i][1] = tuple[1]
+                for i, tup in enumerate(histogram_tuple) :
+                    new_scale = calibrate_data(tup[1],zlp_pos,energy_dispersion=energy_dispersion)
+                    new_tuple = list(tup)
+                    new_tuple[1] = new_scale
+                    histogram_tuple[i] = tuple(new_tuple)
+                    if np.all(number_dict[number][i][1] == np.zeros((cheetah3_x_size+1,))) :
+                        number_dict[number][i][0] += tup[0] 
+                        number_dict[number][i][1] = new_scale
+                    else :
+                        sum_tup = shift(tup[0],shift = sum_zlp_pos - zlp_pos,cval=0)
+                        number_dict[number][i][0] += sum_tup
+                    # TODO automatically shift scale
+                    if file == files[0] :
+                        sum_zlp_pos = zlp_pos
                 fig,ax = produce_nth_histogram(histogram_tuple,
                                                int(number))
                 ax.set_title(file)
@@ -318,8 +331,6 @@ def produce_histograms(input_folder_path : str,
         output_filepath = output_folder_path / Path(f"sum_{key}th_histo.png")
         fig.savefig(output_filepath, dpi=300, bbox_inches="tight")
         plt.close()
-                        
-    
 
 if __name__ == '__main__' :
     data  = np.load("sorted_apr27_17h.npy")
